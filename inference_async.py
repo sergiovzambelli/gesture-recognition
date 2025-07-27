@@ -9,7 +9,7 @@ from collections import deque
 from detector import HandVectorExtractor
 
 # Import constants and model definition from your training script (model.py or main script)
-from model import GestureRNNModel, LANDMARK_DIM, MAX_FRAMES, MAX_NUM_HANDS, DEVICE, NUM_LANDMARKS_PER_HAND
+from train_model import GestureRNNModel, LANDMARK_DIM, MAX_FRAMES, MAX_NUM_HANDS, DEVICE, NUM_LANDMARKS_PER_HAND
 
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report, accuracy_score, precision_score, recall_score, f1_score
 import matplotlib.pyplot as plt
@@ -18,11 +18,13 @@ from tqdm import tqdm
 
 from playsound import playsound
 
+
 def play_sound(audio):
     try:
         playsound(audio)  # path to your MP3
     except Exception as e:
         print(f"⚠️ Failed to play MP3: {e}")
+
 
 # === Hardcoded label map ===
 label_map = {
@@ -33,6 +35,8 @@ inv_label_map = {v: k for k, v in label_map.items()}
 NUM_CLASSES = len(label_map)
 
 # --- NORMALIZATION FUNCTIONS (COPIED FROM TRAINING SCRIPT) ---
+
+
 def _normalize_single_hand(hand_landmarks: np.ndarray) -> np.ndarray:
     """Normalizza una singola mano per essere invariante a posizione, scala e rotazione."""
     if hand_landmarks.sum() == 0:  # Mano non rilevata
@@ -71,6 +75,7 @@ def _normalize_single_hand(hand_landmarks: np.ndarray) -> np.ndarray:
 
     return normalized_landmarks.flatten()
 
+
 def _normalize_landmarks_sequence(landmarks_sequence: np.ndarray) -> np.ndarray:
     """Applies advanced normalization to each hand in each frame."""
     if landmarks_sequence.size == 0:
@@ -96,6 +101,8 @@ def _normalize_landmarks_sequence(landmarks_sequence: np.ndarray) -> np.ndarray:
     return normalized_seq
 
 # --- UTILITY TO CREATE METADATA FROM FOLDERS ---
+
+
 def create_metadata_from_folders(root_dir: str, default_label: str = None) -> pd.DataFrame:
     data = []
     if not os.path.isdir(root_dir):
@@ -136,9 +143,10 @@ def create_metadata_from_folders(root_dir: str, default_label: str = None) -> pd
 if __name__ == "__main__":
     # Load model
     model = GestureRNNModel(num_classes=NUM_CLASSES)
-    model_path = "model.pth" # Or "final_gesture_rnn_model.pth"
+    model_path = "assets\\model.pth"  # Or "final_gesture_rnn_assets\\model.pth"
     if not os.path.exists(model_path):
-        print(f"Error: Model file not found at {model_path}. Please ensure training was successful and saved the model.")
+        print(
+            f"Error: Model file not found at {model_path}. Please ensure training was successful and saved the model.")
         exit()
 
     model.load_state_dict(torch.load(model_path, map_location=DEVICE))
@@ -153,12 +161,14 @@ if __name__ == "__main__":
     # If you only have one folder like "clipped/wave" and want to assign all its videos
     # to "wave", then set INFERENCE_VIDEO_ROOT = "clipped/wave"
     # and adjust the create_metadata_from_folders call below.
-    INFERENCE_VIDEO_ROOT = "clipped" # Change this as per your actual directory structure
+    # Change this as per your actual directory structure
+    INFERENCE_VIDEO_ROOT = "clipped"
 
     # Create metadata for inference videos
     # If INFERENCE_VIDEO_ROOT is like "clipped/wave" and all videos inside are "wave", use:
     # inference_df = create_metadata_from_folders(INFERENCE_VIDEO_ROOT, default_label="wave")
-    inference_df = create_metadata_from_folders(INFERENCE_VIDEO_ROOT) # Use this for multi-class structure
+    inference_df = create_metadata_from_folders(
+        INFERENCE_VIDEO_ROOT)  # Use this for multi-class structure
 
     if inference_df.empty:
         print(f"No videos found in '{INFERENCE_VIDEO_ROOT}'. Exiting.")
@@ -221,14 +231,18 @@ if __name__ == "__main__":
     # --- Final Evaluation and Information Display ---
     if all_true_labels and all_predicted_labels:
         print("\n--- Inference Complete ---")
-        play_sound("i_limoni.mp3")
+        play_sound("assets\\i_limoni.mp3")
         class_names = list(label_map.keys())
 
         # Overall Metrics
-        overall_accuracy = accuracy_score(all_true_labels, all_predicted_labels)
-        overall_precision = precision_score(all_true_labels, all_predicted_labels, average='weighted', zero_division=0)
-        overall_recall = recall_score(all_true_labels, all_predicted_labels, average='weighted', zero_division=0)
-        overall_f1 = f1_score(all_true_labels, all_predicted_labels, average='weighted', zero_division=0)
+        overall_accuracy = accuracy_score(
+            all_true_labels, all_predicted_labels)
+        overall_precision = precision_score(
+            all_true_labels, all_predicted_labels, average='weighted', zero_division=0)
+        overall_recall = recall_score(
+            all_true_labels, all_predicted_labels, average='weighted', zero_division=0)
+        overall_f1 = f1_score(
+            all_true_labels, all_predicted_labels, average='weighted', zero_division=0)
 
         print(f"\nTotal videos processed: {len(all_true_labels)}")
         print(f"Overall Accuracy: {overall_accuracy:.4f}")
@@ -236,10 +250,10 @@ if __name__ == "__main__":
         print(f"Overall Recall (Weighted): {overall_recall:.4f}")
         print(f"Overall F1-Score (Weighted): {overall_f1:.4f}")
 
-
         # Classification Report (detailed per class)
         print("\n[ Detailed Classification Report ]")
-        print(classification_report(all_true_labels, all_predicted_labels, target_names=class_names, digits=4, zero_division=0))
+        print(classification_report(all_true_labels, all_predicted_labels,
+              target_names=class_names, digits=4, zero_division=0))
 
         # Confusion Matrix
         cm = confusion_matrix(all_true_labels, all_predicted_labels)
@@ -264,7 +278,7 @@ if __name__ == "__main__":
             # Need to re-run predictions to get probabilities if not stored
             # For simplicity, if not needed often, you can regenerate this.
             # Otherwise, store all_probs from the loop.
-            pass # Skipping ROC for brevity, as probabilities are not stored in all_probs
+            pass  # Skipping ROC for brevity, as probabilities are not stored in all_probs
 
     else:
         print("\nNo videos were successfully processed or no predictions could be made.")
