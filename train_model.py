@@ -224,9 +224,9 @@ class GestureRNNModel(nn.Module):
         self,
         input_dim=LANDMARK_DIM,
         rnn_hidden_dim=256,
-        num_classes=2,
+        num_classes=8,
         rnn_layers=3,
-        dropout_rate=0.5,
+        dropout_rate=0.3,
     ):
         super(GestureRNNModel, self).__init__()
         self.rnn = nn.LSTM(
@@ -386,21 +386,64 @@ def evaluate_model(model, test_loader, label_map):
     plt.show()
 
     # 3. ROC Curve e AUC (specifico per classificazione binaria)
-    if len(class_names) == 2:
-        probs_class_1 = np.array(all_probs)[:, 1]
-        fpr, tpr, _ = roc_curve(all_labels, probs_class_1)
-        roc_auc = auc(fpr, tpr)
+    if len(class_names) > 2:
+        print("\n[ ROC Curve and AUC (One-vs-Rest for Multiclass) ]")
+        # Convert all_probs to numpy array if it's not already
+        all_probs_np = np.array(all_probs)
+        # Convert labels to one-hot encoding for roc_curve
+        all_labels_one_hot = np.eye(len(class_names))[all_labels]
 
-        plt.figure(figsize=(8, 6))
-        plt.plot(
-            fpr, tpr, color="darkorange", lw=2, label=f"ROC curve (AUC = {roc_auc:.4f})"
-        )
-        plt.plot([0, 1], [0, 1], color="navy", lw=2, linestyle="--")
+        plt.figure(figsize=(10, 8))
+        for i, class_name in enumerate(class_names):
+            fpr, tpr, _ = roc_curve(all_labels_one_hot[:, i], all_probs_np[:, i])
+            roc_auc = auc(fpr, tpr)
+            plt.plot(fpr, tpr, lw=2,
+                    label=f'ROC curve of class {class_name} (area = {roc_auc:.2f})')
+
+        plt.plot([0, 1], [0, 1], 'k--', lw=2, label='Chance')
         plt.xlim([0.0, 1.0])
         plt.ylim([0.0, 1.05])
-        plt.xlabel("False Positive Rate")
-        plt.ylabel("True Positive Rate")
-        plt.title("Receiver Operating Characteristic (ROC) Curve")
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title('Receiver Operating Characteristic (ROC) Curve - One-vs-Rest')
+        plt.legend(loc="lower right")
+        plt.grid(True)
+        plt.show()
+
+        # Calculate Macro and Micro AUC
+        # Micro-average ROC curve and AUC
+        fpr_micro, tpr_micro, _ = roc_curve(all_labels_one_hot.ravel(), all_probs_np.ravel())
+        roc_auc_micro = auc(fpr_micro, tpr_micro)
+        print(f"Micro-average AUC: {roc_auc_micro:.4f}")
+
+        # Macro-average ROC curve and AUC
+        # First aggregate all false positive rates
+        all_fpr = np.unique(np.concatenate([roc_curve(all_labels_one_hot[:, i], all_probs_np[:, i])[0] for i in range(len(class_names))]))
+        # Then interpolate all ROC curves at this points
+        mean_tpr = np.zeros_like(all_fpr)
+        for i in range(len(class_names)):
+            mean_tpr += np.interp(all_fpr, roc_curve(all_labels_one_hot[:, i], all_probs_np[:, i])[0], roc_curve(all_labels_one_hot[:, i], all_probs_np[:, i])[1])
+        # Finally average it and compute AUC
+        mean_tpr /= len(class_names)
+
+        fpr_macro = all_fpr
+        tpr_macro = mean_tpr
+        roc_auc_macro = auc(fpr_macro, tpr_macro)
+        print(f"Macro-average AUC: {roc_auc_macro:.4f}")
+
+        plt.figure(figsize=(8, 6))
+        plt.plot(fpr_macro, tpr_macro,
+                label=f'macro-average ROC curve (area = {roc_auc_macro:.2f})',
+                color='deeppink', linestyle=':', linewidth=4)
+        plt.plot(fpr_micro, tpr_micro,
+                label=f'micro-average ROC curve (area = {roc_auc_micro:.2f})',
+                color='navy', linestyle=':', linewidth=4)
+        plt.plot([0, 1], [0, 1], 'k--', lw=2, label='Chance')
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title('Multiclass ROC Curve (Micro/Macro Average)')
         plt.legend(loc="lower right")
         plt.grid(True)
         plt.show()
