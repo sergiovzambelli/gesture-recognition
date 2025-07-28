@@ -23,7 +23,6 @@ Before running the application, ensure you have the following installed:
     ```bash
     pip install -r requirements.txt
     ```
-    (You'll need to create a `requirements.txt` file. See "Creating `requirements.txt`" below.)
 
 ## Usage
 1.  **Ensure your webcam is connected and accessible.**
